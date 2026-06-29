@@ -15,6 +15,11 @@ The user has an existing, finished webpage (HTML + CSS + JS + assets) and wants 
 
 ## 0. First action — orient, don't guess
 
+- **Ask for the project setup UP FRONT (before building), so the plugin is wired right from the first build — don't defer repo/token to the end:**
+  1. **Brand/slug** → plugin folder + prefix (e.g. `acme` → `acme-elementor-widgets`, widgets `acme_*`).
+  2. **GitHub repo** (`owner/repo`) for this plugin's auto-updater → bake into the `Update URI` header + `*_GH_OWNER`/`*_GH_REPO` constants immediately. (Create it with `gh` if it doesn't exist.)
+  3. **Token constant** for the private repo: default a **shared org token** (`<ORG>_GH_TOKEN`) from `wp-config.php`, with a per-brand fallback. Confirm the name.
+  4. **Target WordPress** has Elementor (+ **Elementor Pro** if the design needs native forms).
 - Find the canonical source: **`final.html`** in the project folder is the source of truth. Multiple HTML iterations often exist and **disagree** (different copy, light vs. dark treatments). Ignore all others unless the user says otherwise.
 - Locate the supporting assets: design-system CSS (e.g. `colors_and_type.css`, a `*-kit.css`), the `fonts/` dir, `images/`/`uploads/`, and note any **external asset URLs** referenced in the HTML.
 - If the HTML is a compiled JS/React app (look for `React.createRef`, `componentDidMount`, `sc-for`, data arrays like `cases:[…]`), the rendered markup is generated from **data arrays + templates** — extract those, not just static DOM.
@@ -70,7 +75,7 @@ Structure (reuse a previously generated plugin as a template if available):
 
 **Architecture = scaffold:** every site gets ONE self-contained plugin stamped from this template — no shared/runtime dependency between sites. The reusable core is the *bootstrap + updater + template-registrar + verbatim system files + packaging*; the widgets/fonts/tokens are per-project (or styles bleed across clients).
 
-**GitHub auto-updater:** copy `includes/class-github-updater.php` verbatim; in the main file set an `Update URI:` header + `*_GH_OWNER`/`*_GH_REPO` constants and `new GitHub_Updater([...])` (admin only). For a **private** repo, read a read-only token from `wp-config.php` and download the release with auth — and do NOT forward the auth header to GitHub's signed-redirect URL (fetch with `redirection => 0`, then GET the `Location` without the header). Release flow: push → tag `vX.Y.Z` → attach `<slug>.zip` as a release asset (else zipball fallback + `upgrader_source_selection` rename) → site shows one-click Update. Tag must be **>** the installed version. Bypass the updater's own cache on `?force-check=1` so manual checks are instant.
+**GitHub auto-updater:** copy `includes/class-github-updater.php` verbatim; in the main file set an `Update URI:` header + `*_GH_OWNER`/`*_GH_REPO` constants and `new GitHub_Updater([...])` (admin only). For a **private** repo, read a read-only token from `wp-config.php` (the shared `<ORG>_GH_TOKEN` agreed in step 0, with a per-brand fallback) and download the release with auth — and do NOT forward the auth header to GitHub's signed-redirect URL (fetch with `redirection => 0`, then GET the `Location` without the header). Release flow: push → tag `vX.Y.Z` → attach `<slug>.zip` as a release asset (else zipball fallback + `upgrader_source_selection` rename) → site shows one-click Update. Tag must be **>** the installed version. Bypass the updater's own cache on `?force-check=1` so manual checks are instant.
 
 - Honor `prefers-reduced-motion` in every animation. Match light/dark treatment exactly.
 
