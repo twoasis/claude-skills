@@ -66,6 +66,18 @@ Structure (reuse a previously generated plugin as a template if available):
 - Each widget renders the section's **exact source markup with the source's class names AND ids** (e.g. `#proof .rail`, `.hero-media`) so the shared JS finds and animates it. **Do not invent BEM names** — the lifted JS targets the originals, and renaming silently breaks interactions (e.g. a slider whose buttons bind to nothing).
 - Page-level JS (scroll-reveal walking `section > div > children`, hover-steal on `#id .card`) works automatically once each widget outputs `<section id="…"><div>…`.
 
+**Theme isolation (REQUIRED — themes will otherwise override your styles).** Per-section widgets lose the source page's single outer wrapper, so any element relying on *inherited* font/color falls back to the **theme**, and theme element-selectors (`.entry-content h2`) outrank single-class component rules. Append an isolation block to the shared CSS, scoped to your widgets via Elementor's auto class so nothing leaks out to the theme:
+```css
+[class*="elementor-widget-<prefix>_"] > .elementor-widget-container{
+  font-family:var(--font-body)!important; color:var(--fg-2)!important; line-height:1.5; margin:0; padding:0;
+}
+[class*="elementor-widget-<prefix>_"] .elementor-widget-container *{ box-sizing:border-box; }
+[class*="elementor-widget-<prefix>_"] .elementor-widget-container :is(h1,h2,h3,h4,h5,h6,p,figure,blockquote,ul,ol){ margin:0; }
+[class*="elementor-widget-<prefix>_"] .elementor-widget-container a{ text-decoration:none; }
+[class*="elementor-widget-<prefix>_"] .elementor-widget-container img{ max-width:100%; height:auto; }
+```
+`!important` is on the **container** (parent) so it only governs inheritance — dark sections that set `color:#fff` on their own `<section>` and headings with inline display-font are unaffected; it just stops un-set text from inheriting the theme. (`<prefix>` = the widget name prefix, e.g. `acme_`.)
+
 **Editability:** expose content as controls — TEXT/TEXTAREA/WYSIWYG/MEDIA/URL, and a **REPEATER for every card/list/slider collection** (one repeater item = one card). Keep purely procedural bits (interactive SVG demos, exact icon path data) as fixed markup and say so. Source inline styles can stay hard-coded in `render()` (that's the fixed design); swap controls in only for text/images/links.
 
 **Page assembly — DON'T auto-create a published page.** Default to making the page **template** available; the user assembles when ready:
