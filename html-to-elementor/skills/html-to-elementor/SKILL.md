@@ -74,7 +74,13 @@ Structure (reuse a previously generated plugin as a template if available):
 [class*="elementor-widget-<prefix>_"] .elementor-widget-container *{ box-sizing:border-box; }
 [class*="elementor-widget-<prefix>_"] .elementor-widget-container :is(h1,h2,h3,h4,h5,h6,p,figure,blockquote,ul,ol){ margin:0; }
 [class*="elementor-widget-<prefix>_"] .elementor-widget-container a{ text-decoration:none; }
-[class*="elementor-widget-<prefix>_"] .elementor-widget-container img{ max-width:100%; height:auto; }
+[class*="elementor-widget-<prefix>_"] .elementor-widget-container button,[class*="elementor-widget-<prefix>_"] .elementor-widget-container input,[class*="elementor-widget-<prefix>_"] .elementor-widget-container textarea{ font-family:inherit; }
+/* CRITICAL — many themes ship img{height:auto!important;max-width:100%!important},
+   which overrides even inline styles and collapses every object-fit:cover image.
+   Re-assert the exact sizing patterns the markup uses, keyed to the inline style,
+   with !important — one line per pattern (height:100%, and any fixed heights like 260px). */
+[class*="elementor-widget-<prefix>_"] .elementor-widget-container img[style*="height:100%"]{ height:100%!important; }
+[class*="elementor-widget-<prefix>_"] .elementor-widget-container img[style*="object-fit:cover"]{ object-fit:cover!important; }
 ```
 `!important` is on the **container** (parent) so it only governs inheritance — dark sections that set `color:#fff` on their own `<section>` and headings with inline display-font are unaffected; it just stops un-set text from inheriting the theme. (`<prefix>` = the widget name prefix, e.g. `acme_`.)
 
