@@ -48,12 +48,14 @@ For each section pull, from `final.html` and its stylesheets:
 
 🚫 **NEVER ship the page as a single monolithic "whole page" widget.** Standing requirement: **every section is its own editable Elementor widget** (selectable, reorderable, with content controls). A one-widget page is not an acceptable deliverable (only an optional extra). Build per-section from the start — the "fast monolithic page first" detour always forces a full rebuild.
 
+> 🧩 **Use the bundled reference code — do NOT re-derive it.** This skill ships proven, working copies at **`reference/class-github-updater.php`** and **`reference/class-template-registrar.php`**. **Copy them VERBATIM** into the plugin's `includes/` and only change the `namespace` line to the plugin's namespace. Re-writing the updater from prose reliably breaks silent, hard-to-debug things (private-repo authenticated download, not-forwarding-auth-to-the-redirect, and the `?force-check` cache bypass) → backend updates won't appear.
+
 Structure (reuse a previously generated plugin as a template if available):
 ```
 <brand>-elementor-widgets/
   <brand>-elementor-widgets.php       ← category + registers every section widget; registers shared assets; inits updater
-  includes/class-github-updater.php    ← reusable, project-agnostic (copy as-is); set OWNER/REPO constants in the main file
-  includes/class-template-registrar.php← registers the page template into Elementor's Saved Templates library
+  includes/class-github-updater.php    ← COPY VERBATIM from this skill's reference/; only change the namespace
+  includes/class-template-registrar.php← COPY VERBATIM from this skill's reference/; only change the namespace
   widgets/class-<section>-widget.php   ← ONE editable widget per section (incl. id-less sections)
   assets/css/<brand>-system.css        ← tokens + the source's component CSS, lifted VERBATIM (one shared stylesheet)
   assets/js/<brand>-interactions.js    ← the source's behaviors, lifted VERBATIM (one shared script)
