@@ -106,6 +106,19 @@ if ( ! $img ) { $img = $s['image']['url']; }                                // b
 ```
 The tag is structural and resolution swaps the `src` — both work without any CSS conflict. Resolution only resizes Media Library images (needs an attachment ID); plugin-bundled assets fall back to their URL. Ship a small `function_exists`-guarded `<prefix>_tag()` helper (whitelist of allowed tags) so every widget shares it. Full group-typography controls need a class-based refactor (inline styles can't be overridden per-control) — defer unless asked.
 
+**Rich text — WYSIWYG prose + inline-HTML list items.** Users expect to bold a word, add a link, or format a paragraph.
+- **Every prose `TEXTAREA` → `WYSIWYG`** (intro, body, descriptions, callouts, quotes, paragraphs — including inside repeaters). ⚠️ The editor wraps content in its own `<p>` tags, so it is **invalid inside a heading or an existing `<p>`**. Render WYSIWYG output inside a **block `<div>` wrapper** (move the section's inline styles onto the div) via a `wp_kses_post()` helper — never `esc_html`, which would print the tags as text:
+  ```php
+  <div style="…the source paragraph's inline styles…"><?php echo prefix_rich( $s['intro'] ); ?></div>
+  ```
+- **List-item text fields that render with an icon** (checklist rows, icon cards, numbered steps) → allow **inline HTML** (`<span>/<strong>/<a>/<br>`) via a restricted `wp_kses()` helper — keep the control a `TEXT`/`TEXTAREA` (NOT WYSIWYG: block `<p>` would break a one-per-line split or an inline label):
+  ```php
+  <span class="…"><?php echo prefix_inline( $line ); ?></span>
+  ```
+- **Do NOT convert**: heading-as-textarea fields (WYSIWYG injects `<p>` into `<h*>`) and SVG icon-path textareas (WYSIWYG corrupts the path data). Leave those as `TEXTAREA`.
+- Ship two more guarded helpers beside `<prefix>_tag()`: `<prefix>_rich()` = `wp_kses_post()`, `<prefix>_inline()` = `wp_kses()` with an inline-only tag whitelist.
+- **Fidelity:** the widget-isolation CSS resets `p{margin:0}`, so a single-paragraph WYSIWYG (the default) is pixel-identical to the source. Because prose wrappers are now `<div>`, adjacent `<p>/<ul>/<ol>` siblings only occur inside editor content — add one scoped rule to restore multi-block spacing there (`… :is(p,ul,ol) + :is(p,ul,ol){ margin-top:.9em }` plus list padding) without disturbing the single-paragraph layout.
+
 **Page assembly — DON'T auto-create a published page.** Default to making the page **template** available; the user assembles when ready:
 - Ship `templates/<page>.json` (Elementor export: array of `section > column > widget`, one per section, `page_settings.template = elementor_canvas`) for manual import (Elementor → Templates → Import).
 - Optionally register that JSON into **Elementor's Saved Templates library** on `admin_init` (post_type `elementor_library`, `_elementor_data` = the JSON `content`, term `page` in `elementor_library_type`) so it appears with no file upload — idempotent: create once, re-create if deleted, never clobber edits.
@@ -142,3 +155,4 @@ Verify entries show forward slashes (`unzip -l`). Install: Plugins → Add New �
 - **Compress-Archive backslash bug** breaks activation — always Info-ZIP.
 - **Private-repo updater**: don't forward the auth header to the signed-redirect download URL.
 - **Style controls on inline-styled markup**: `selectors`-based controls do nothing (inline styles win). Inject the value into the inline style string, defaulting to the source value.
+- **WYSIWYG output belongs in a `<div>`, echoed with `wp_kses_post`** — never inside a heading/`<p>` (nested `<p>` breaks the markup) and never via `esc_html` (prints the tags). Icon list-item fields take inline HTML via a restricted `wp_kses`, and stay `TEXT`/`TEXTAREA`.
