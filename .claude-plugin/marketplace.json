@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "Shared Claude Code skills.",
-    "version": "1.2.1"
+    "version": "1.2.2"
   },
   "plugins": [
     {
       "name": "html-to-elementor",
       "source": "./html-to-elementor",
       "description": "Reproduce an existing HTML webpage as pixel-exact, editable Elementor custom widgets in one WordPress plugin — fonts, spacing, colors, and all animations/interactions intact. Per-section editable widgets, full-page assembly, and a GitHub auto-updater.",
-      "version": "1.2.1"
+      "version": "1.2.2"
     }
   ]
 }
