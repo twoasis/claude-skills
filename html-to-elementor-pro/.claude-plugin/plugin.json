@@ -1,0 +1,8 @@
+{
+  "name": "html-to-elementor-pro",
+  "version": "1.0.0",
+  "description": "Reproduce an existing HTML webpage as pixel-exact, editable Elementor custom widgets bundled in one WordPress plugin — fonts, spacing, colors, AND all animations/interactions intact (hovers, scroll-reveal, sliders, keyframes, JS). Lifts the source code verbatim rather than re-deriving; per-section editable widgets; full-page assembly; private-repo GitHub auto-updater.",
+  "author": {
+    "name": "twoasis"
+  }
+}
