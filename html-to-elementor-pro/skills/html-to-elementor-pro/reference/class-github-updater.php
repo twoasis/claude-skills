@@ -78,16 +78,40 @@ class GitHub_Updater {
 			return $this->remote = [];
 		}
 
-		// Prefer a built zip asset named "<slug>.zip"; else fall back to the zipball.
+		// Prefer a built zip asset; else fall back to the source zipball.
+		// Match "<slug>.zip" first, then a versioned variant ("<slug>-1.4.1.zip"),
+		// then any .zip on the release. An asset uploaded under a slightly
+		// different name must NOT silently fall through to the zipball — that
+		// path is far more fragile (see the Accept handling in download_package).
 		// For a private repo we must hit the API URLs (which accept the token)
 		// rather than browser_download_url, and download them ourselves.
 		$package = $body['zipball_url'] ?? '';
+
 		if ( ! empty( $body['assets'] ) ) {
+			$exact = null;
+			$prefixed = null;
+			$any = null;
+
 			foreach ( $body['assets'] as $asset ) {
-				if ( isset( $asset['name'] ) && $asset['name'] === $this->slug . '.zip' ) {
-					$package = $this->token ? $asset['url'] : $asset['browser_download_url'];
+				$name = $asset['name'] ?? '';
+				if ( '.zip' !== strtolower( substr( $name, -4 ) ) ) {
+					continue;
+				}
+				if ( $name === $this->slug . '.zip' ) {
+					$exact = $asset;
 					break;
 				}
+				if ( null === $prefixed && 0 === strpos( $name, $this->slug ) ) {
+					$prefixed = $asset;
+				}
+				if ( null === $any ) {
+					$any = $asset;
+				}
+			}
+
+			$chosen = $exact ? $exact : ( $prefixed ? $prefixed : $any );
+			if ( $chosen ) {
+				$package = $this->token ? $chosen['url'] : $chosen['browser_download_url'];
 			}
 		}
 
@@ -177,9 +201,14 @@ class GitHub_Updater {
 			return $reply; // not our package
 		}
 
+		// The Accept header differs by endpoint, and getting it wrong is fatal:
+		// /releases/assets/:id returns the binary ONLY for octet-stream, while
+		// the /zipball/ endpoint rejects octet-stream outright with HTTP 415.
+		$is_asset = false !== strpos( $package, '/releases/assets/' );
+
 		$headers = [
 			'Authorization' => 'Bearer ' . $this->token,
-			'Accept'        => 'application/octet-stream',
+			'Accept'        => $is_asset ? 'application/octet-stream' : 'application/vnd.github+json',
 			'User-Agent'    => 'WordPress-' . $this->slug,
 		];
 		$res = wp_remote_get( $package, [ 'timeout' => 60, 'redirection' => 0, 'headers' => $headers ] );
@@ -201,7 +230,15 @@ class GitHub_Updater {
 			$code = wp_remote_retrieve_response_code( $res );
 		}
 		if ( 200 !== $code ) {
-			return new \WP_Error( 'gh_download_failed', 'GitHub download failed (HTTP ' . $code . ').' );
+			// Name the source so a failure is diagnosable from the admin notice.
+			return new \WP_Error(
+				'gh_download_failed',
+				sprintf(
+					'GitHub download failed (HTTP %d) fetching the %s.',
+					$code,
+					$is_asset ? 'release asset' : 'source zipball — no matching .zip asset was found on the release'
+				)
+			);
 		}
 
 		$body = wp_remote_retrieve_body( $res );

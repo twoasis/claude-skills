@@ -140,11 +140,15 @@ Build a **self-contained preview Artifact per section** (inline fonts as data: U
 
 ## 6. Package — forward-slash zip ONLY
 
-**Never use PowerShell `Compress-Archive`** — on Windows PS 5.1 it writes backslash path separators, which WordPress's extractor mishandles → "Plugin file does not exist." Use Info-ZIP via Bash:
+**Never use PowerShell `Compress-Archive`** — on Windows PS 5.1 it writes backslash path separators, which WordPress's extractor mishandles → "Plugin file does not exist." Prefer **`git archive`** (always forward slashes, committed files only, single top-level folder) run from Bash — commit the version bump first, then:
+```
+git archive --format=zip -9 --prefix=<name>/ -o dist/<name>.zip HEAD
+```
+Add a `.gitattributes` with `export-ignore` for repo-only tooling (`build.sh`, `.gitignore`) so it stays out of the zip. Info-ZIP is the equivalent alternative when files are uncommitted:
 ```
 cd <plugins dir> && rm -f <name>.zip && zip -r -q <name>.zip <name> -x "*.DS_Store" -x "<name>/.git/*"
 ```
-Verify entries show forward slashes (`unzip -l`). Install: Plugins → Add New → Upload → Activate.
+**Ship a `build.sh` in the repo that does this and hard-fails on regression** — grep `unzip -l` output for `\` and assert `<name>/<name>.php` exists at depth 1. A one-off manual zip is how the backslash bug sneaks back in. Install: Plugins → Add New → Upload → Activate.
 
 ## Gotchas learned the hard way
 
@@ -156,8 +160,10 @@ Verify entries show forward slashes (`unzip -l`). Install: Plugins → Add New �
 - **Match the treatment exactly** — a section may be light even if a thumbnail reads dark. Trust the source CSS tokens.
 - **Real icons** — source SVG paths, not FontAwesome substitutes.
 - **External images** must be downloaded/bundled or the widget breaks offline.
-- **Compress-Archive backslash bug** breaks activation — always Info-ZIP.
+- **Compress-Archive backslash bug** breaks activation — always `git archive` or Info-ZIP.
+- **Diagnosing "Plugin file does not exist." — read the activate URL.** It spells out the path WordPress was handed. `plugin=<slug>-1/<slug>/<slug>.php` (an extra nesting level, plus a numeric suffix on the folder) is the backslash-zip signature, NOT a WordPress or updater bug: with backslash separators WordPress can't build the directory tree, so the plugin file sits a level below where `get_plugins()` scans, and — with no usable single root dir in the archive — WordPress names the plugin folder after the *uploaded zip file*. The `-1`/`-2`/`-3` comes from `wp_unique_filename`: stale `<slug>.zip` copies in `wp-content/uploads/` make each new upload land as `<slug>-N.zip`, and that suffixed name becomes the folder name. Deleting the plugin doesn't help because the leftovers are in **uploads**, not `plugins/`. Fix the zip, then have the user delete the suffixed plugin folders AND the old `<slug>-*.zip` files in uploads. Verify the *published release asset* by re-downloading it (`unzip -l | grep '[\]'`) — checking only the local build misses a bad upload.
 - **Private-repo updater**: don't forward the auth header to the signed-redirect download URL.
+- **Release asset name is load-bearing — a versioned filename breaks updates with HTTP 415.** Attach the zip as exactly `<slug>.zip`. Upload it as `<slug>-1.4.1.zip` and the updater's asset match fails, silently falling back to the **zipball** URL — and the zipball endpoint rejects `Accept: application/octet-stream` (correct for `/releases/assets/:id`) with **415 Unsupported Media Type**. The bundled reference now matches versioned/any `.zip` and picks the Accept per endpoint, but **older installs carry the old updater**, so the fix must land on the *release* side: publish the next release with a correctly-named asset. Never rename the zip to include the version.
 - **Style controls on inline-styled markup**: `selectors`-based controls do nothing (inline styles win). Inject the value into the inline style string, defaulting to the source value.
 - **WYSIWYG output belongs in a `<div>`, echoed with `wp_kses_post`** — never inside a heading/`<p>` (nested `<p>` breaks the markup) and never via `esc_html` (prints the tags). Icon list-item fields take inline HTML via a restricted `wp_kses`, and stay `TEXT`/`TEXTAREA`.
 - **Font swaps move natural line-breaks.** If you replace the source's brand font (e.g. Sofia Pro → Manrope), any heading that relied on *natural* wrapping to break at a specific word will wrap elsewhere — the new font's metrics differ. Where the mockup shows a deliberate two-line split (e.g. plain phrase / accent phrase), force it with an explicit `<br>` before the accent rather than trusting the wrap.
